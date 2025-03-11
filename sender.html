@@ -58,7 +58,7 @@
 
 
     <h2>WebRTC DataChannel - Sender</h2>
-    <textarea id="message" placeholder="Type a message..."></textarea>
+    <textarea id="message" onkeydown="sendMessage()" placeholder="Type a message..."></textarea>
     <button id="send">Send</button>
     <p>Received: <span id="received"></span></p>
 
@@ -130,7 +130,7 @@
         }
 
 
-        setInterval(() => {
+        function sendMessage() {
             let msg = document.getElementById("message").value;
             if (dataChannel.readyState === "open") {
                 dataChannel.send(msg);
@@ -138,7 +138,7 @@
             } else {
                 // console.error("DataChannel is not open yet!");
             }
-        }, 2000);
+        }
 
 
 
