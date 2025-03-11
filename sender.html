@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sender</title>
+    <style>
+        /* Modal styling */
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 14px;
+            resize: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="copyableModal" class="modal">
+        <div class="modal-content">
+            <h2>Copy this text</h2>
+            <textarea id="copyText" readonly>This is some copyable text that you can copy to the clipboard.</textarea>
+            <button onclick="copyToClipboard()">Copy</button>
+            <button onclick="acknowldegement()">Acknowldegement</button>
+        </div>
+    </div>
+
+
+    <h2>WebRTC DataChannel - Sender</h2>
+    <textarea id="message" placeholder="Type a message..."></textarea>
+    <button id="send">Send</button>
+    <p>Received: <span id="received"></span></p>
+
+    <script>
+        localStorage.clear();
+        document.getElementById("send").disabled = true; // Enable send button
+
+        let peerConnection = new RTCPeerConnection();
+        let dataChannel = peerConnection.createDataChannel("chat");
+
+
+
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                // peerConnection.addIceCandidate(event.candidate).catch(error => console.log("Error 1:" + error));
+                localStorage.setItem("candidate", JSON.stringify(event.candidate));
+                openModal();
+            }
+        };
+
+
+
+        peerConnection.createOffer().then(offer => {
+            return peerConnection.setLocalDescription(offer);
+        }).then(() => {
+            console.log("Offer for peers");
+            if (peerConnection.localDescription) {
+                localStorage.setItem("offer", JSON.stringify(peerConnection.localDescription));
+            }
+        });
+
+
+        dataChannel.onopen = () => {
+            console.log("DataChannel is open");
+            document.getElementById("send").disabled = false; // Enable send button
+        };
+
+
+
+        dataChannel.onmessage = (event) => {
+            document.getElementById("received").innerText = event.data;
+        };
+
+
+        function openModal() {
+            document.getElementById("copyableModal").style.display = "block";
+            var hostUrl = window.location.origin;
+
+            document.getElementById("copyText").innerText=hostUrl+"/receiver.html?offer="+encodeURIComponent(localStorage.getItem("offer"))+"&candidate="+encodeURIComponent(localStorage.getItem("candidate"));
+
+        }
+
+        function acknowldegement() {
+            document.getElementById("copyableModal").style.display = "none";
+            let answer = prompt("Please peer ack answer:");
+            console.log("Answer we provided ")
+            console.log(answer)
+            setAnswer(answer)
+        }
+
+
+        function copyToClipboard() {
+            var copyText = document.getElementById("copyText");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            document.execCommand("copy");
+            alert("Copied to clipboard: " + copyText.value);
+        }
+
+
+        setInterval(() => {
+            let msg = document.getElementById("message").value;
+            if (dataChannel.readyState === "open") {
+                dataChannel.send(msg);
+                console.log("Message sent:", msg);
+            } else {
+                // console.error("DataChannel is not open yet!");
+            }
+        }, 2000);
+
+
+
+        function setAnswer(answer) {
+            if (answer && !peerConnection.remoteDescription) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(answer)))
+                    .then(() => {
+                        console.log("Answer set successfully");
+                    })
+                    .catch(error=>console.log("error 2:",error));
+            } else {
+                alert("remote description set already");
+            }
+        }
+
+
+
+        setInterval(() => {
+            console.log("DataChannel state:", dataChannel.readyState);
+        }, 5000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC - Receiver</title>
+    <style>
+        /* Modal styling */
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 14px;
+            resize: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="copyableModal" class="modal">
+        <div class="modal-content">
+            <h2>Copy this text</h2>
+            <textarea id="copyText" readonly>This is some copyable text that you can copy to the clipboard.</textarea>
+            <button onclick="copyToClipboard()">Copy</button>
+            <button onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+
+    <h2>WebRTC DataChannel - Receiver</h2>
+    <textarea id="message" placeholder="Type a message..."></textarea>
+    <button id="send">Send</button>
+    <p>Received: <span id="received"></span></p>
+
+    <script>
+        let peerConnection = new RTCPeerConnection();
+        let dataChannel;
+
+        peerConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            dataChannel.onopen = () => {
+                console.log("DataChannel is open");
+                document.getElementById("send").disabled = false; // Enable send button
+            };
+            dataChannel.onmessage = (event) => {
+                document.getElementById("received").innerText = event.data;
+            };
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            let existingCadidate = JSON.parse(localStorage.getItem("candidate")) || [];
+            if (event.candidate) {
+                // existingCadidate.push(JSON.parse(JSON.stringify(event.candidate)));
+                localStorage.setItem("candidate2", JSON.stringify(existingCadidate));
+                // for (let candidate of existingCadidate) {
+                peerConnection.addIceCandidate(event.candidate)
+                peerConnection.addIceCandidate(JSON.parse(getParamsValue("candidate")));
+                // }
+            }
+        };
+
+
+
+        function setOffer(offer) {
+            //  debugger
+            if (offer && !peerConnection.remoteDescription) {
+                offer = JSON.parse(offer);
+                let sessionDescription;
+                try {
+                    sessionDescription = new RTCSessionDescription(offer);
+                    console.log("Offer is valid:", sessionDescription);
+                } catch (error) {
+                    console.error("Invalid Offer:", error);
+                }
+
+                peerConnection.setRemoteDescription(sessionDescription)
+                    .then(() => peerConnection.createAnswer())
+                    .then(answer => peerConnection.setLocalDescription(answer))
+                    .then(() => {
+                        // peerConnection.addIceCandidate(candidate);
+                        console.log("receiver acknowldegement ANSWER")
+                        localStorage.setItem('answer', JSON.stringify(peerConnection.localDescription))
+                        openModal();
+                    })
+                    .catch(console.error);
+            } else {
+                console.log("Failed")
+            }
+        };
+
+
+        function openModal() {
+            document.getElementById("copyableModal").style.display = "block";
+            document.getElementById("copyText").innerText=localStorage.getItem("answer");
+
+        }
+
+        function closeModal() {
+            document.getElementById("copyableModal").style.display = "none";
+        }
+
+
+        function copyToClipboard() {
+            var copyText = document.getElementById("copyText");
+
+            // Select the text
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+
+            // Copy the text
+            document.execCommand("copy");
+
+            // Alert the user that the text has been copied
+            alert("Copied to clipboard: " + copyText.value);
+        }
+
+        
+
+        setInterval(() => {
+            let msg = document.getElementById("message").value;
+            if (dataChannel && dataChannel.readyState === "open") {
+                dataChannel.send(msg);
+                console.log("Message sent:", msg);
+            } else {
+                // console.error("DataChannel is not open yet!");
+            }
+        }, 2000);
+
+
+        setInterval(() => {
+            if (dataChannel) {
+                console.log("DataChannel state:", dataChannel.readyState);
+            } else {
+                console.log("DataChannel is not initialized yet.");
+            }
+        }, 5000);
+
+
+
+        function getParamsValue(name) {
+            var currentUrl = window.location.href;
+            var urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+
+        setOffer(getParamsValue("offer"))
+   
+    </script>
+</body>
+
+</html>
