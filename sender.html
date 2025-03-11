@@ -108,7 +108,7 @@
             document.getElementById("copyableModal").style.display = "block";
             var hostUrl = window.location.origin;
 
-            document.getElementById("copyText").innerText=hostUrl+"/receiver.html?offer="+encodeURIComponent(localStorage.getItem("offer"))+"&candidate="+encodeURIComponent(localStorage.getItem("candidate"));
+            document.getElementById("copyText").innerText=hostUrl+"/rtc/receiver.html?offer="+encodeURIComponent(localStorage.getItem("offer"))+"&candidate="+encodeURIComponent(localStorage.getItem("candidate"));
 
         }
 
