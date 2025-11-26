@@ -63,7 +63,16 @@
     <p>Received: <span id="received"></span></p>
 
     <script>
-        let peerConnection = new RTCPeerConnection();
+        let peerConnection = new RTCPeerConnection(
+            {
+                iceServers: [
+                    {
+                        urls: "stun:192.168.0.108:3478", 
+                        credential: "north"  
+                    }
+                ]
+            }
+        );
         let dataChannel;
 
         peerConnection.ondatachannel = (event) => {
