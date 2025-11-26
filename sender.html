@@ -4,12 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sender</title>
+    <title>Video Calling - Sender</title>
     <style>
         /* Modal styling */
         .modal {
             display: none;
-            /* Hidden by default */
             position: fixed;
             z-index: 1;
             left: 0;
@@ -42,6 +41,13 @@
             margin: 5px;
             cursor: pointer;
         }
+
+        video {
+            width: 100%;
+            height: auto;
+            border: 1px solid #888;
+            margin-top: 20px;
+        }
     </style>
 </head>
 
@@ -50,14 +56,20 @@
     <div id="copyableModal" class="modal">
         <div class="modal-content">
             <h2>Copy this text</h2>
-            <textarea id="copyText" readonly>This is some copyable text that you can copy to the clipboard.</textarea>
+            <textarea id="copyText" readonly></textarea>
             <button onclick="copyToClipboard()">Copy</button>
-            <button onclick="acknowldegement()">Acknowldegement</button>
+            <button onclick="acknowldegement()">Acknowledge</button>
         </div>
     </div>
 
+    <h2>WebRTC Video Calling - Sender</h2>
 
-    <h2>WebRTC DataChannel - Sender</h2>
+    <!-- Local Video Display -->
+    <video id="localVideo" autoplay muted></video>
+    
+    <!-- Remote Video Display -->
+    <video id="remoteVideo" autoplay></video>
+
     <textarea id="message" onkeydown="sendMessage()" placeholder="Type a message..."></textarea>
     <button id="send">Send</button>
     <p>Received: <span id="received"></span></p>
@@ -76,21 +88,36 @@
                 ]
             }
         );
+        
         let dataChannel = peerConnection.createDataChannel("chat");
 
+        // Local media stream
+        let localStream;
+        
+        // Get user media (video and audio)
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then((stream) => {
+                // Display local video
+                document.getElementById("localVideo").srcObject = stream;
 
-
+                // Set the local stream on the peer connection
+                localStream = stream;
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            })
+            .catch(error => {
+                console.log("Error accessing media devices: ", error);
+            });
 
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                // peerConnection.addIceCandidate(event.candidate).catch(error => console.log("Error 1:" + error));
                 localStorage.setItem("candidate", JSON.stringify(event.candidate));
                 openModal();
             }
         };
 
-
-
+        // Create offer and set local description
         peerConnection.createOffer().then(offer => {
             return peerConnection.setLocalDescription(offer);
         }).then(() => {
@@ -100,25 +127,25 @@
             }
         });
 
-
         dataChannel.onopen = () => {
             console.log("DataChannel is open");
             document.getElementById("send").disabled = false; // Enable send button
         };
 
-
-
         dataChannel.onmessage = (event) => {
             document.getElementById("received").innerText = event.data;
         };
 
+        peerConnection.ontrack = (event) => {
+            // Display remote video when it is received
+            document.getElementById("remoteVideo").srcObject = event.streams[0];
+        };
 
         function openModal() {
             document.getElementById("copyableModal").style.display = "block";
             var hostUrl = window.location.origin;
 
-            document.getElementById("copyText").innerText=hostUrl+"/rtc/receiver.html?offer="+encodeURIComponent(localStorage.getItem("offer"))+"&candidate="+encodeURIComponent(localStorage.getItem("candidate"));
-
+            document.getElementById("copyText").innerText = hostUrl + "/rtc/receiver.html?offer=" + encodeURIComponent(localStorage.getItem("offer")) + "&candidate=" + encodeURIComponent(localStorage.getItem("candidate"));
         }
 
         function acknowldegement() {
@@ -129,7 +156,6 @@
             setAnswer(answer)
         }
 
-
         function copyToClipboard() {
             var copyText = document.getElementById("copyText");
             copyText.select();
@@ -137,7 +163,6 @@
             document.execCommand("copy");
             alert("Copied to clipboard: " + copyText.value);
         }
-
 
         function sendMessage() {
             let msg = document.getElementById("message").value;
@@ -149,21 +174,17 @@
             }
         }
 
-
-
         function setAnswer(answer) {
             if (answer && !peerConnection.remoteDescription) {
                 peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(answer)))
                     .then(() => {
                         console.log("Answer set successfully");
                     })
-                    .catch(error=>console.log("error 2:",error));
+                    .catch(error => console.log("error 2:", error));
             } else {
                 alert("remote description set already");
             }
         }
-
-
 
         setInterval(() => {
             console.log("DataChannel state:", dataChannel.readyState);
